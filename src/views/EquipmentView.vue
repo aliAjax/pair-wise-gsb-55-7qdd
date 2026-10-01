@@ -65,6 +65,11 @@ const statusText = (value: DeviceStatus) =>
         <el-table-column label="类型" width="110">
           <template #default="{ row }">{{ deviceKindLabels[row.kind as DeviceKind] }}</template>
         </el-table-column>
+        <el-table-column label="修订号" width="85">
+          <template #default="{ row }">
+            <el-tag effect="plain" size="small">rev {{ row.revision }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="station" label="所属站所" width="150" />
         <el-table-column label="电压等级" width="110">
           <template #default="{ row }">{{ row.voltage }} kV</template>

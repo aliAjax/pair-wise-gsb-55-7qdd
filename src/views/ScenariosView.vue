@@ -8,13 +8,16 @@ import { operationModes } from '@/data/mock'
 import type { ReviewStatus } from '@/types/domain'
 
 const store = useAppStore()
-const { devices, scenarios } = storeToRefs(store)
+const { devices, scenarios, currentChecksum } = storeToRefs(store)
 const selectedId = ref(scenarios.value[0]?.id ?? '')
 const compareId = ref(scenarios.value[1]?.id ?? '')
 const playbackIndex = ref(-1)
 const playing = ref(false)
 const createDialog = ref(false)
 let playbackTimer: number | undefined
+
+const isStale = (scenario: (typeof scenarios.value)[number]) =>
+  !!scenario.basisChecksum && scenario.basisChecksum !== currentChecksum.value
 
 const form = reactive({
   name: '',
@@ -138,7 +141,12 @@ onBeforeUnmount(stopPlayback)
 
     <div class="toolbar">
       <el-select v-model="selectedId" placeholder="选择场景" style="width: 330px">
-        <el-option v-for="scenario in scenarios" :key="scenario.id" :label="scenario.name" :value="scenario.id" />
+        <el-option
+          v-for="scenario in scenarios"
+          :key="scenario.id"
+          :label="`${isStale(scenario) ? '⚠ ' : ''}${scenario.name}`"
+          :value="scenario.id"
+        />
       </el-select>
       <span class="muted">对比场景</span>
       <el-select v-model="compareId" clearable placeholder="选择对比场景" style="width: 300px">
@@ -159,10 +167,22 @@ onBeforeUnmount(stopPlayback)
       <section class="panel">
         <div class="panel-title">
           <div>
-            <h3>{{ selected.name }}</h3>
+            <h3>
+              {{ selected.name }}
+              <el-tag v-if="isStale(selected)" type="danger" effect="plain" style="margin-left: 8px">
+                定值已变 · 场景失效待重验
+              </el-tag>
+            </h3>
             <span class="muted">{{ selected.operationMode }} · {{ selected.faultType }}</span>
           </div>
           <div>
+            <el-button
+              v-if="isStale(selected)"
+              type="warning"
+              @click="store.reverifyScenario(selected.id)"
+            >
+              按最新定值重新验证
+            </el-button>
             <el-button
               v-if="selected.status === 'draft' || selected.status === 'returned'"
               type="primary"

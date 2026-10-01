@@ -6,6 +6,7 @@ import type {
   ProtectionSetting,
 } from '@/types/domain'
 import { validateSettings } from '@/services/validation'
+import { settingsChecksum } from '@/services/revision'
 
 export const operationModes = ['正常方式', '单母线检修', '线路 N-1', '变压器检修']
 
@@ -19,6 +20,7 @@ const devices: Device[] = [
     voltage: 110,
     status: 'running',
     operationModes: ['正常方式', '单母线检修', '线路 N-1'],
+    revision: 1,
   },
   {
     id: 'line-101',
@@ -30,6 +32,7 @@ const devices: Device[] = [
     parentId: 'bus-110-a',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 3,
   },
   {
     id: 'breaker-101',
@@ -41,6 +44,7 @@ const devices: Device[] = [
     parentId: 'line-101',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 1,
   },
   {
     id: 'relay-l101',
@@ -52,6 +56,7 @@ const devices: Device[] = [
     parentId: 'line-101',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 3,
   },
   {
     id: 'transformer-1',
@@ -63,6 +68,7 @@ const devices: Device[] = [
     parentId: 'bus-110-a',
     status: 'running',
     operationModes: ['正常方式', '单母线检修'],
+    revision: 1,
   },
   {
     id: 'relay-t1',
@@ -74,6 +80,7 @@ const devices: Device[] = [
     parentId: 'transformer-1',
     status: 'running',
     operationModes: ['正常方式', '单母线检修', '变压器检修'],
+    revision: 2,
   },
   {
     id: 'bus-35-b',
@@ -85,6 +92,7 @@ const devices: Device[] = [
     parentId: 'transformer-1',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 1,
   },
   {
     id: 'line-201',
@@ -96,6 +104,7 @@ const devices: Device[] = [
     parentId: 'bus-35-b',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 2,
   },
   {
     id: 'relay-l201',
@@ -107,6 +116,7 @@ const devices: Device[] = [
     parentId: 'line-201',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 2,
   },
   {
     id: 'line-202',
@@ -118,6 +128,7 @@ const devices: Device[] = [
     parentId: 'bus-35-b',
     status: 'maintenance',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 1,
   },
   {
     id: 'relay-l202',
@@ -129,6 +140,7 @@ const devices: Device[] = [
     parentId: 'line-202',
     status: 'running',
     operationModes: ['正常方式', '线路 N-1'],
+    revision: 1,
   },
   {
     id: 'relay-bus-a',
@@ -140,6 +152,7 @@ const devices: Device[] = [
     parentId: 'bus-110-a',
     status: 'running',
     operationModes: ['正常方式', '单母线检修'],
+    revision: 1,
   },
 ]
 
@@ -157,6 +170,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 1.2,
     startCondition: '相电流突变量启动',
     updatedAt: '2026-09-20T03:20:00.000Z',
+    revision: 3,
   },
   {
     id: 'set-l101-2',
@@ -171,6 +185,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 0,
     startCondition: '相电流越限启动',
     updatedAt: '2026-09-20T03:20:00.000Z',
+    revision: 2,
   },
   {
     id: 'set-l201-1',
@@ -185,6 +200,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 1.4,
     startCondition: '相电流突变量启动',
     updatedAt: '2026-09-21T04:10:00.000Z',
+    revision: 2,
   },
   {
     id: 'set-l201-2',
@@ -199,6 +215,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 0,
     startCondition: '相电流越限启动',
     updatedAt: '2026-09-21T04:10:00.000Z',
+    revision: 1,
   },
   {
     id: 'set-l202-1',
@@ -213,6 +230,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 1.7,
     startCondition: '相电流突变量启动',
     updatedAt: '2026-09-21T04:25:00.000Z',
+    revision: 1,
   },
   {
     id: 'set-l202-2',
@@ -227,6 +245,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 0,
     startCondition: '相电流越限启动',
     updatedAt: '2026-09-21T04:25:00.000Z',
+    revision: 1,
   },
   {
     id: 'set-t1-1',
@@ -241,6 +260,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 0,
     startCondition: '差流速断启动',
     updatedAt: '2026-09-22T05:00:00.000Z',
+    revision: 2,
   },
   {
     id: 'set-t1-2',
@@ -255,6 +275,7 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 0,
     startCondition: '相电流越限启动',
     updatedAt: '2026-09-22T05:00:00.000Z',
+    revision: 1,
   },
   {
     id: 'set-busa-1',
@@ -269,57 +290,62 @@ const settings: ProtectionSetting[] = [
     recloseDelayS: 1.55,
     startCondition: '母线差流启动',
     updatedAt: '2026-09-22T05:30:00.000Z',
+    revision: 1,
   },
 ]
 
-const scenarios: FaultScenario[] = [
-  {
-    id: 'sc-101-near',
-    name: '101 线路近端永久故障',
-    operationMode: '正常方式',
-    faultDeviceId: 'line-101',
-    faultType: '单相接地',
-    status: 'approved',
-    steps: [
-      { sequence: 1, relayId: 'relay-l101', action: 'I 段瞬时动作，跳开 101 断路器', delayMs: 50, status: 'executed' },
-      { sequence: 2, relayId: 'relay-l101', action: '重合闸启动并等待', delayMs: 1200, status: 'executed' },
-      { sequence: 3, relayId: 'relay-l101', action: '重合于故障后加速跳闸', delayMs: 1350, status: 'executed' },
-    ],
-    outageDevices: ['line-101'],
-    createdAt: '2026-09-23T02:00:00.000Z',
-    notes: '近端永久故障未导致上级母线失电。',
-  },
-  {
-    id: 'sc-202-mode-b',
-    name: '单母线检修时 202 线路故障',
-    operationMode: '单母线检修',
-    faultDeviceId: 'line-202',
-    faultType: '相间短路',
-    status: 'reviewing',
-    steps: [
-      { sequence: 1, relayId: 'relay-l202', action: 'II 段延时动作，跳开 202 断路器', delayMs: 450, status: 'executed' },
-      { sequence: 2, relayId: 'relay-t1', action: '后备保护启动但未出口', delayMs: 1100, status: 'pending' },
-    ],
-    outageDevices: ['line-202'],
-    createdAt: '2026-09-24T06:15:00.000Z',
-    notes: '需要确认运行方式切换后灵敏度是否满足要求。',
-  },
-  {
-    id: 'sc-bus-a',
-    name: '东母线区内故障',
-    operationMode: '正常方式',
-    faultDeviceId: 'bus-110-a',
-    faultType: '母线短路',
-    status: 'draft',
-    steps: [
-      { sequence: 1, relayId: 'relay-bus-a', action: '母差保护切除全部连接元件', delayMs: 120, status: 'executed' },
-      { sequence: 2, relayId: 'relay-l101', action: '保护启动并闭锁重合闸', delayMs: 145, status: 'pending' },
-    ],
-    outageDevices: ['bus-110-a', 'line-101', 'transformer-1'],
-    createdAt: '2026-09-25T01:35:00.000Z',
-    notes: '停电范围需与调度运行方式核对。',
-  },
-]
+function buildScenarios(currentChecksum: string): FaultScenario[] {
+  return [
+    {
+      id: 'sc-101-near',
+      name: '101 线路近端永久故障',
+      operationMode: '正常方式',
+      faultDeviceId: 'line-101',
+      faultType: '单相接地',
+      status: 'approved',
+      steps: [
+        { sequence: 1, relayId: 'relay-l101', action: 'I 段瞬时动作，跳开 101 断路器', delayMs: 50, status: 'executed' },
+        { sequence: 2, relayId: 'relay-l101', action: '重合闸启动并等待', delayMs: 1200, status: 'executed' },
+        { sequence: 3, relayId: 'relay-l101', action: '重合于故障后加速跳闸', delayMs: 1350, status: 'executed' },
+      ],
+      outageDevices: ['line-101'],
+      createdAt: '2026-09-23T02:00:00.000Z',
+      notes: '近端永久故障未导致上级母线失电。',
+      basisChecksum: currentChecksum,
+      reverifiedAt: '2026-09-23T02:00:00.000Z',
+    },
+    {
+      id: 'sc-202-mode-b',
+      name: '单母线检修时 202 线路故障',
+      operationMode: '单母线检修',
+      faultDeviceId: 'line-202',
+      faultType: '相间短路',
+      status: 'reviewing',
+      steps: [
+        { sequence: 1, relayId: 'relay-l202', action: 'II 段延时动作，跳开 202 断路器', delayMs: 450, status: 'executed' },
+        { sequence: 2, relayId: 'relay-t1', action: '后备保护启动但未出口', delayMs: 1100, status: 'pending' },
+      ],
+      outageDevices: ['line-202'],
+      createdAt: '2026-09-24T06:15:00.000Z',
+      notes: '需要确认运行方式切换后灵敏度是否满足要求。',
+    },
+    {
+      id: 'sc-bus-a',
+      name: '东母线区内故障',
+      operationMode: '正常方式',
+      faultDeviceId: 'bus-110-a',
+      faultType: '母线短路',
+      status: 'draft',
+      steps: [
+        { sequence: 1, relayId: 'relay-bus-a', action: '母差保护切除全部连接元件', delayMs: 120, status: 'executed' },
+        { sequence: 2, relayId: 'relay-l101', action: '保护启动并闭锁重合闸', delayMs: 145, status: 'pending' },
+      ],
+      outageDevices: ['bus-110-a', 'line-101', 'transformer-1'],
+      createdAt: '2026-09-25T01:35:00.000Z',
+      notes: '停电范围需与调度运行方式核对。',
+    },
+  ]
+}
 
 const audit: AuditEntry[] = [
   {
@@ -342,15 +368,18 @@ const audit: AuditEntry[] = [
 
 export function createInitialState(): AppState {
   const clonedSettings = settings.map((setting) => ({ ...setting }))
+  const currentChecksum = settingsChecksum(clonedSettings)
+  const baselineSnapshot = clonedSettings.map((setting) => ({
+    ...setting,
+    currentA: Number((setting.currentA + 0.1).toFixed(2)),
+  }))
   return {
+    schemaVersion: 2,
+    networkMode: 'online',
     devices: devices.map((device) => ({ ...device, operationModes: [...device.operationModes] })),
     settings: clonedSettings,
     issues: validateSettings(clonedSettings, devices),
-    scenarios: scenarios.map((scenario) => ({
-      ...scenario,
-      steps: scenario.steps.map((step) => ({ ...step })),
-      outageDevices: [...scenario.outageDevices],
-    })),
+    scenarios: buildScenarios(currentChecksum),
     baselines: [
       {
         id: 'baseline-1',
@@ -360,8 +389,8 @@ export function createInitialState(): AppState {
         lockedAt: '2026-09-02T01:20:00.000Z',
         createdBy: '陈工',
         note: '秋检前正式运行定值',
-        snapshot: clonedSettings.map((setting) => ({ ...setting, currentA: setting.currentA + 0.1 })),
-        checksum: 'A5F1-927C',
+        snapshot: baselineSnapshot,
+        checksum: settingsChecksum(baselineSnapshot),
       },
     ],
     comments: [
@@ -376,6 +405,11 @@ export function createInitialState(): AppState {
       },
     ],
     audit,
+    activeBaselineId: 'baseline-1',
+    offlinePackages: [],
+    mergeConflicts: [],
+    submissionLocks: {},
+    executionRecords: [],
   }
 }
 

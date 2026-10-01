@@ -7,7 +7,7 @@ import { useAppStore } from '@/stores/app'
 import { diffSettings } from '@/services/validation'
 
 const store = useAppStore()
-const { data, settings } = storeToRefs(store)
+const { data, settings, effectiveVersion, currentChecksum } = storeToRefs(store)
 const selectedId = ref(data.value.activeBaselineId ?? data.value.baselines[0]?.id ?? '')
 const createDialog = ref(false)
 const baselineNote = ref('')
@@ -18,6 +18,9 @@ const diffs = computed(() => {
   if (!selected.value) return []
   return diffSettings(settings.value, selected.value.snapshot)
 })
+
+const isStale = (baseline: (typeof data.value.baselines)[number]) =>
+  baseline.status !== 'locked' && baseline.checksum !== currentChecksum.value
 const baselineComments = computed(() =>
   data.value.comments.filter(
     (item) => item.targetType === 'baseline' && item.targetId === selectedId.value,
@@ -57,10 +60,16 @@ async function lockBaseline() {
   if (!selected.value) return
   try {
     await store.approveBaseline(selected.value.id)
-    ElMessage.success('基线已批准并锁定')
+    ElMessage.success('基线已批准并锁定为唯一有效版本')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '基线锁定失败')
   }
+}
+
+async function rebuildSelected() {
+  if (!selected.value) return
+  await store.rebuildBaseline(selected.value.id)
+  ElMessage.success('快照已按当前定值重建，请重新会签')
 }
 
 async function submitComment() {
@@ -87,32 +96,58 @@ async function submitComment() {
         <el-button @click="createDialog = true">创建基线上会签</el-button>
         <el-button
           type="primary"
-          :disabled="!selected || selected.status === 'locked'"
+          :disabled="!selected || selected.status === 'locked' || isStale(selected)"
           :loading="store.saving"
           @click="lockBaseline"
         >
-          批准并锁定
+          批准并锁定为有效版本
         </el-button>
       </template>
     </PageHeader>
+
+    <el-alert
+      v-if="effectiveVersion"
+      :title="`当前唯一有效版本：${effectiveVersion.version}（校验码 ${effectiveVersion.checksum}），审批页与执行页共同读取，锁定时间 ${effectiveVersion.lockedAt ? new Date(effectiveVersion.lockedAt).toLocaleString('zh-CN') : '—'}。`"
+      :type="effectiveVersion.matchesCurrent ? 'success' : 'warning'"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 14px"
+    />
+    <el-alert
+      v-else
+      title="尚无锁定的有效版本，执行页将禁止下发。请在高风险问题闭环后批准并锁定基线。"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 14px"
+    />
 
     <div class="two-column">
       <section class="panel">
         <div class="panel-title">
           <h3>版本清单</h3>
-          <span class="muted">锁定后作为后续差异比较基线</span>
+          <span class="muted">锁定后作为后续差异比较与执行下发的同一有效版本</span>
         </div>
         <el-table :data="data.baselines" highlight-current-row @current-change="selectedId = $event?.id ?? selectedId">
           <el-table-column prop="version" label="版本" width="90" />
-          <el-table-column prop="note" label="说明" min-width="220" />
+          <el-table-column prop="note" label="说明" min-width="200" />
           <el-table-column prop="createdBy" label="创建人" width="95" />
-          <el-table-column label="状态" width="100">
+          <el-table-column label="状态" width="150">
             <template #default="{ row }">
               <el-tag
                 :type="row.status === 'locked' ? 'success' : row.status === 'reviewing' ? 'warning' : 'info'"
                 effect="plain"
               >
-                {{ row.status === 'locked' ? '已锁定' : row.status === 'reviewing' ? '会签中' : '草稿' }}
+                {{ row.status === 'locked' ? '已锁定有效' : row.status === 'reviewing' ? '会签中' : '草稿' }}
+              </el-tag>
+              <el-tag
+                v-if="isStale(row)"
+                type="danger"
+                effect="plain"
+                size="small"
+                style="margin-left: 4px"
+              >
+                快照失效
               </el-tag>
             </template>
           </el-table-column>
@@ -123,11 +158,29 @@ async function submitComment() {
       <section class="panel">
         <div class="panel-title">
           <h3>{{ selected?.version ?? '未选择版本' }}</h3>
-          <el-tag v-if="selected" :type="selected.status === 'locked' ? 'success' : 'warning'" effect="plain">
-            {{ selected.status === 'locked' ? '基线已冻结' : '会签进行中' }}
-          </el-tag>
+          <div v-if="selected" style="display: flex; gap: 8px">
+            <el-button
+              v-if="selected.status !== 'locked' && isStale(selected)"
+              size="small"
+              type="warning"
+              @click="rebuildSelected"
+            >
+              按当前定值重建快照
+            </el-button>
+            <el-tag v-if="selected" :type="selected.status === 'locked' ? 'success' : 'warning'" effect="plain">
+              {{ selected.status === 'locked' ? '有效版本已冻结' : '会签进行中' }}
+            </el-tag>
+          </div>
         </div>
         <template v-if="selected">
+          <el-alert
+            v-if="isStale(selected)"
+            title="定值已变化：该会签基线快照失效，请按当前定值重建快照后重新会签，锁定会被拒绝。"
+            type="error"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          />
           <el-descriptions :column="1" border>
             <el-descriptions-item label="基线说明">{{ selected.note }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">
@@ -137,6 +190,9 @@ async function submitComment() {
               {{ selected.lockedAt ? new Date(selected.lockedAt).toLocaleString('zh-CN') : '尚未锁定' }}
             </el-descriptions-item>
             <el-descriptions-item label="快照定值">{{ selected.snapshot.length }} 条</el-descriptions-item>
+            <el-descriptions-item v-if="selected.rebuiltAt" label="快照重建时间">
+              {{ new Date(selected.rebuiltAt).toLocaleString('zh-CN') }}
+            </el-descriptions-item>
             <el-descriptions-item label="校验码">
               <span class="mono">{{ selected.checksum }}</span>
             </el-descriptions-item>
@@ -201,9 +257,19 @@ async function submitComment() {
           >
             高风险问题全部关闭
           </el-checkbox>
+          <el-checkbox :model-value="!!selected && !isStale(selected)" disabled>
+            快照与当前定值一致（无失效）
+          </el-checkbox>
         </div>
         <el-alert
-          v-if="data.issues.some((issue) => issue.level === 'high' && issue.status !== 'closed')"
+          v-if="selected && isStale(selected)"
+          title="基线快照已落后当前定值，请先重建快照并重新会签。"
+          type="error"
+          :closable="false"
+          show-icon
+        />
+        <el-alert
+          v-else-if="data.issues.some((issue) => issue.level === 'high' && issue.status !== 'closed')"
           title="当前存在未关闭的高风险问题，批准锁定会被系统拒绝。"
           type="error"
           :closable="false"

@@ -18,15 +18,17 @@ const filtered = computed(() =>
   data.value.audit.filter((item) => {
     const matchesKeyword =
       !keyword.value ||
-      `${item.action}${item.target}${item.detail}`.toLowerCase().includes(keyword.value.toLowerCase())
+      `${item.action}${item.target}${item.detail}${item.traceId ?? ''}`
+        .toLowerCase()
+        .includes(keyword.value.toLowerCase())
     return matchesKeyword && (!action.value || item.action === action.value)
   }),
 )
 
 async function exportList() {
-  const content = await exportMutation.mutateAsync()
-  preview.value = content
-  const blob = new Blob([`\ufeff${content}`], { type: 'text/csv;charset=utf-8' })
+  const result = await exportMutation.mutateAsync()
+  preview.value = result.content
+  const blob = new Blob([`\ufeff${result.content}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
@@ -34,7 +36,7 @@ async function exportList() {
   anchor.click()
   URL.revokeObjectURL(url)
   await store.recordExport('CSV', data.value.settings.length)
-  ElMessage.success('定值清单已导出并写入审计')
+  ElMessage.success(`定值清单（有效版本 ${result.version}）已导出并写入审计`)
 }
 
 async function resetData() {
@@ -83,6 +85,14 @@ async function resetData() {
           <el-table-column prop="target" label="对象" min-width="180" />
           <el-table-column prop="operator" label="操作人" width="95" />
           <el-table-column prop="detail" label="说明" min-width="260" />
+          <el-table-column label="审校链" width="170">
+            <template #default="{ row }">
+              <el-tag v-if="row.traceId" size="small" type="info" effect="plain" class="mono">
+                {{ row.traceId }}
+              </el-tag>
+              <span v-else class="muted">—</span>
+            </template>
+          </el-table-column>
         </el-table>
       </section>
 

@@ -25,7 +25,7 @@ const relaySettings = computed(() =>
   settings.value.filter((setting) => setting.relayId === deviceId.value),
 )
 
-const emptyDevice = (): Omit<Device, 'id'> => ({
+const emptyDevice = (): Omit<Device, 'id' | 'revision'> => ({
   code: '',
   name: '',
   kind: 'relay',
@@ -35,7 +35,7 @@ const emptyDevice = (): Omit<Device, 'id'> => ({
   operationModes: ['正常方式'],
 })
 
-const deviceForm = reactive<Omit<Device, 'id'>>(emptyDevice())
+const deviceForm = reactive<Omit<Device, 'id' | 'revision'>>(emptyDevice())
 const settingForm = reactive<ProtectionSetting>({
   id: '',
   relayId: deviceId.value,
@@ -49,6 +49,7 @@ const settingForm = reactive<ProtectionSetting>({
   recloseDelayS: 0,
   startCondition: '相电流越限启动',
   updatedAt: new Date().toISOString(),
+  revision: 1,
 })
 
 const deviceRules: FormRules = {
@@ -118,6 +119,7 @@ function openSetting(setting?: ProtectionSetting) {
       recloseDelayS: 0,
       startCondition: '相电流越限启动',
       updatedAt: new Date().toISOString(),
+      revision: 1,
     })
   }
   settingDialog.value = true
@@ -147,6 +149,9 @@ async function saveSetting() {
       <section class="panel">
         <div class="panel-title"><h3>设备属性</h3></div>
         <el-form ref="formRef" :model="deviceForm" :rules="deviceRules" label-width="110px">
+          <el-form-item v-if="!isCreating && editingDevice" label="台账修订号">
+            <el-tag effect="plain">rev {{ editingDevice.revision }}（保存后自增）</el-tag>
+          </el-form-item>
           <el-form-item label="设备编号" prop="code">
             <el-input v-model="deviceForm.code" placeholder="例如 PR-L301" />
           </el-form-item>
@@ -206,6 +211,11 @@ async function saveSetting() {
       </div>
       <el-table :data="relaySettings">
         <el-table-column prop="stage" label="段位" width="70" />
+        <el-table-column label="修订号" width="85">
+          <template #default="{ row }">
+            <el-tag effect="plain" size="small">rev {{ row.revision }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="保护对象" min-width="170">
           <template #default="{ row }">
             {{ devices.find((device) => device.id === row.protectedDeviceId)?.name ?? row.protectedDeviceId }}

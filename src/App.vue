@@ -1,18 +1,29 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { DataLine, DocumentChecked, Files, Operation, SetUp, Tickets } from '@element-plus/icons-vue'
+import { storeToRefs } from 'pinia'
+import {
+  Connection,
+  DataLine,
+  DocumentChecked,
+  Files,
+  Operation,
+  Promotion,
+  SetUp,
+  Tickets,
+} from '@element-plus/icons-vue'
 import { useAppStateQuery } from '@/api/queries'
 import { useAppStore } from '@/stores/app'
 
 const route = useRoute()
 const store = useAppStore()
+const { networkMode } = storeToRefs(store)
 const { data, isLoading, isError, error } = useAppStateQuery()
 
 watch(
   data,
-  (state) => {
-    if (state && !store.hydrated) store.hydrate(state)
+  (payload) => {
+    if (payload?.state && !store.hydrated) store.hydrate(payload)
   },
   { immediate: true },
 )
@@ -24,6 +35,8 @@ const menuItems = [
   { path: '/coordination', label: '配合校核', icon: DocumentChecked },
   { path: '/scenarios', label: '故障场景', icon: Operation },
   { path: '/baseline', label: '会签与基线', icon: Tickets },
+  { path: '/sync', label: '断网合并', icon: Promotion },
+  { path: '/execution', label: '有效版本执行', icon: Connection },
   { path: '/audit', label: '审计与导出', icon: SetUp },
 ]
 </script>
@@ -56,7 +69,7 @@ const menuItems = [
       <div class="sidebar-foot">
         <span>当前工程</span>
         <strong>2026 秋检保护方案</strong>
-        <small>本地数据持久化开启</small>
+        <small>{{ networkMode === 'offline' ? '断网作业模式 · 离线包暂存' : '在线联网模式 · 可回网合并' }}</small>
       </div>
     </el-aside>
     <el-container>
@@ -66,12 +79,23 @@ const menuItems = [
           <h1>{{ title }}</h1>
         </div>
         <div class="header-actions">
+          <el-tag :type="networkMode === 'offline' ? 'warning' : 'success'" effect="dark">
+            {{ networkMode === 'offline' ? '断网' : '联网' }}
+          </el-tag>
           <el-tag v-if="store.saving" type="warning">正在保存</el-tag>
           <el-tag v-else type="success">数据已持久化</el-tag>
           <el-avatar :size="32">陈</el-avatar>
         </div>
       </el-header>
       <el-main class="app-main">
+        <el-alert
+          v-if="store.backfillNotice"
+          :title="store.backfillNotice"
+          type="warning"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 14px"
+        />
         <router-view />
       </el-main>
     </el-container>

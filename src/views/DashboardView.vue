@@ -21,7 +21,7 @@ const statusType = (status: string) =>
     ? 'success'
     : status === 'reviewing'
       ? 'warning'
-      : status === 'returned'
+      : status === 'returned' || status === 'invalid'
         ? 'danger'
         : 'info'
 
@@ -32,6 +32,7 @@ const statusText = (status: string) =>
     approved: '已批准',
     locked: '已锁定',
     returned: '已退回',
+    invalid: '待重算',
   })[status] ?? status
 </script>
 
@@ -63,10 +64,12 @@ const statusText = (status: string) =>
         <strong>{{ approvedScenarios }} / {{ scenarios.length }}</strong>
         <small>含已批准和已锁定场景</small>
       </div>
-      <div class="metric">
-        <span>当前基线</span>
+      <div class="metric" :class="{ danger: activeBaseline?.drifted }">
+        <span>有效版本</span>
         <strong>{{ activeBaseline?.version ?? 'V1.0' }}</strong>
-        <small>{{ activeBaseline?.checksum ?? 'A5F1-927C' }}</small>
+        <small>
+          {{ activeBaseline?.drifted ? '已漂移·需重审' : activeBaseline?.checksum ?? 'A5F1-927C' }}
+        </small>
       </div>
     </section>
 

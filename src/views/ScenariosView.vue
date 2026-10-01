@@ -35,6 +35,7 @@ const statusText = (status: ReviewStatus) =>
     approved: '已批准',
     locked: '已锁定',
     returned: '已退回',
+    invalid: '定值已变·待重算',
   })[status]
 
 const statusType = (status: ReviewStatus) =>
@@ -44,7 +45,9 @@ const statusType = (status: ReviewStatus) =>
       ? 'warning'
       : status === 'returned'
         ? 'danger'
-        : 'info'
+        : status === 'invalid'
+          ? 'danger'
+          : 'info'
 
 const outageDiff = computed(() => {
   if (!selected.value || !compared.value) return { leftOnly: [], rightOnly: [] }
@@ -164,6 +167,13 @@ onBeforeUnmount(stopPlayback)
           </div>
           <div>
             <el-button
+              v-if="selected.status === 'invalid'"
+              type="primary"
+              @click="changeStatus('reviewing')"
+            >
+              定值已变，重新提交会签
+            </el-button>
+            <el-button
               v-if="selected.status === 'draft' || selected.status === 'returned'"
               type="primary"
               @click="changeStatus('reviewing')"
@@ -176,6 +186,15 @@ onBeforeUnmount(stopPlayback)
             </template>
           </div>
         </div>
+
+        <el-alert
+          v-if="selected.status === 'invalid'"
+          title="该场景引用的保护定值已变更，原动作序列结论失效，需按新定值重算后重新会签。"
+          type="error"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        />
 
         <el-timeline>
           <el-timeline-item

@@ -6,6 +6,7 @@ import type {
   ProtectionSetting,
 } from '@/types/domain'
 import { validateSettings } from '@/services/validation'
+import { checksum } from '@/services/revision'
 
 export const operationModes = ['正常方式', '单母线检修', '线路 N-1', '变压器检修']
 
@@ -340,8 +341,13 @@ const audit: AuditEntry[] = [
   },
 ]
 
+/**
+ * 初始台账按“旧档案”提供：设备/定值/场景/基线均不含 rev，
+ * 首次加载时由 backfillRevisions 按首次导入回填 rev=1 并留痕。
+ */
 export function createInitialState(): AppState {
   const clonedSettings = settings.map((setting) => ({ ...setting }))
+  const initialChecksum = checksum(clonedSettings)
   return {
     devices: devices.map((device) => ({ ...device, operationModes: [...device.operationModes] })),
     settings: clonedSettings,
@@ -360,10 +366,12 @@ export function createInitialState(): AppState {
         lockedAt: '2026-09-02T01:20:00.000Z',
         createdBy: '陈工',
         note: '秋检前正式运行定值',
-        snapshot: clonedSettings.map((setting) => ({ ...setting, currentA: setting.currentA + 0.1 })),
-        checksum: 'A5F1-927C',
+        snapshot: clonedSettings.map((setting) => ({ ...setting })),
+        checksum: initialChecksum,
+        drifted: false,
       },
     ],
+    activeBaselineId: 'baseline-1',
     comments: [
       {
         id: 'comment-1',

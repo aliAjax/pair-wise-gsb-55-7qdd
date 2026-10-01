@@ -1,18 +1,33 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { DataLine, DocumentChecked, Files, Operation, SetUp, Tickets } from '@element-plus/icons-vue'
+import {
+  Connection,
+  DataLine,
+  DocumentChecked,
+  Files,
+  Operation,
+  SetUp,
+  Tickets,
+  VideoPause,
+} from '@element-plus/icons-vue'
 import { useAppStateQuery } from '@/api/queries'
 import { useAppStore } from '@/stores/app'
+import { useSyncStore } from '@/stores/sync'
 
 const route = useRoute()
 const store = useAppStore()
+const sync = useSyncStore()
 const { data, isLoading, isError, error } = useAppStateQuery()
 
 watch(
   data,
-  (state) => {
-    if (state && !store.hydrated) store.hydrate(state)
+  async (state) => {
+    if (state && !store.hydrated) {
+      store.hydrate(state)
+      // 载入调度端权威版本（首次会播种初始台账）
+      await sync.pull()
+    }
   },
   { immediate: true },
 )
@@ -23,7 +38,9 @@ const menuItems = [
   { path: '/devices', label: '设备台账', icon: Files },
   { path: '/coordination', label: '配合校核', icon: DocumentChecked },
   { path: '/scenarios', label: '故障场景', icon: Operation },
-  { path: '/baseline', label: '会签与基线', icon: Tickets },
+  { path: '/baseline', label: '审批与基线', icon: Tickets },
+  { path: '/execution', label: '定值执行', icon: VideoPause },
+  { path: '/sync', label: '断网合并', icon: Connection },
   { path: '/audit', label: '审计与导出', icon: SetUp },
 ]
 </script>
@@ -51,12 +68,23 @@ const menuItems = [
         <el-menu-item v-for="item in menuItems" :key="item.path" :index="item.path">
           <el-icon><component :is="item.icon" /></el-icon>
           <span>{{ item.label }}</span>
+          <el-badge
+            v-if="item.path === '/sync' && sync.pendingConflicts.length"
+            :value="sync.pendingConflicts.length"
+            class="menu-badge"
+            type="danger"
+          />
         </el-menu-item>
       </el-menu>
       <div class="sidebar-foot">
         <span>当前工程</span>
         <strong>2026 秋检保护方案</strong>
-        <small>本地数据持久化开启</small>
+        <small>
+          链路：<em :class="sync.online ? 'link-online' : 'link-offline'">
+            {{ sync.online ? '在线（调度联通）' : '断网（现场离线）' }}
+          </em>
+        </small>
+        <small v-if="sync.serverHeadRev">调度端修订流水号 #{{ sync.serverHeadRev }}</small>
       </div>
     </el-aside>
     <el-container>
@@ -66,7 +94,11 @@ const menuItems = [
           <h1>{{ title }}</h1>
         </div>
         <div class="header-actions">
-          <el-tag v-if="store.saving" type="warning">正在保存</el-tag>
+          <el-tag v-if="!sync.online" type="danger" effect="dark">断网中 · 离线包 {{ sync.offlineChanges.length }} 笔</el-tag>
+          <el-tag v-else-if="sync.pendingConflicts.length" type="warning" effect="dark">
+            {{ sync.pendingConflicts.length }} 个冲突待复核
+          </el-tag>
+          <el-tag v-if="store.saving || sync.busy" type="warning">正在写入</el-tag>
           <el-tag v-else type="success">数据已持久化</el-tag>
           <el-avatar :size="32">陈</el-avatar>
         </div>

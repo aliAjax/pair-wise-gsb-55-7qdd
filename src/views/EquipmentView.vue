@@ -84,6 +84,11 @@ const statusText = (value: DeviceStatus) =>
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="修订号" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">r{{ row.rev ?? 1 }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="130" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="router.push(`/devices/${row.id}`)">编辑</el-button>

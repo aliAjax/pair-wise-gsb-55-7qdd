@@ -5,6 +5,8 @@ import DeviceEditorView from '@/views/DeviceEditorView.vue'
 import CoordinationView from '@/views/CoordinationView.vue'
 import ScenariosView from '@/views/ScenariosView.vue'
 import BaselineView from '@/views/BaselineView.vue'
+import ExecutionView from '@/views/ExecutionView.vue'
+import SyncView from '@/views/SyncView.vue'
 import AuditView from '@/views/AuditView.vue'
 
 export const router = createRouter({
@@ -34,7 +36,19 @@ export const router = createRouter({
       path: '/baseline',
       name: 'baseline',
       component: BaselineView,
-      meta: { title: '会签与基线' },
+      meta: { title: '审批与基线' },
+    },
+    {
+      path: '/execution',
+      name: 'execution',
+      component: ExecutionView,
+      meta: { title: '定值执行' },
+    },
+    {
+      path: '/sync',
+      name: 'sync',
+      component: SyncView,
+      meta: { title: '断网合并' },
     },
     { path: '/audit', name: 'audit', component: AuditView, meta: { title: '审计与导出' } },
   ],

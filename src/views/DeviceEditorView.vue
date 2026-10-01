@@ -7,12 +7,14 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import GuardCurveCanvas from '@/components/GuardCurveCanvas.vue'
 import { useAppStore } from '@/stores/app'
+import { useSyncStore } from '@/stores/sync'
 import { deviceKindLabels, operationModes } from '@/data/mock'
 import type { Device, ProtectionSetting } from '@/types/domain'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
+const sync = useSyncStore()
 const { devices, settings } = storeToRefs(store)
 const formRef = ref<FormInstance>()
 const settingFormRef = ref<FormInstance>()
@@ -86,19 +88,23 @@ watch(
 
 async function saveDevice() {
   await formRef.value?.validate()
-  if (isCreating.value) {
-    const created = await store.addDevice({ ...deviceForm, operationModes: [...deviceForm.operationModes] })
-    ElMessage.success('设备已创建')
-    await router.replace(`/devices/${created.id}`)
-    return
+  try {
+    if (isCreating.value) {
+      const created = await store.addDevice({ ...deviceForm, operationModes: [...deviceForm.operationModes] })
+      ElMessage.success('设备已创建')
+      await router.replace(`/devices/${created.id}`)
+      return
+    }
+    if (!editingDevice.value) return
+    await store.updateDevice({
+      ...editingDevice.value,
+      ...deviceForm,
+      operationModes: [...deviceForm.operationModes],
+    })
+    ElMessage.success('设备信息已保存')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '保存失败')
   }
-  if (!editingDevice.value) return
-  await store.updateDevice({
-    ...editingDevice.value,
-    ...deviceForm,
-    operationModes: [...deviceForm.operationModes],
-  })
-  ElMessage.success('设备信息已保存')
 }
 
 function openSetting(setting?: ProtectionSetting) {
@@ -125,9 +131,15 @@ function openSetting(setting?: ProtectionSetting) {
 
 async function saveSetting() {
   await settingFormRef.value?.validate()
-  await store.saveSetting({ ...settingForm, relayId: deviceId.value })
+  const result = await store.saveSetting({ ...settingForm, relayId: deviceId.value })
   settingDialog.value = false
-  ElMessage.success('保护定值已保存')
+  if ('offline' in result && result.offline) {
+    ElMessage.success(`断网修改已累计到现场离线包（${result.changedFields.length} 个字段），回网后在“断网合并”页提交`)
+  } else if ('stale' in result && result.stale) {
+    ElMessage.warning(result.message)
+  } else {
+    ElMessage.success('保护定值已保存，校核问题、场景与基线已重算')
+  }
 }
 </script>
 
@@ -142,6 +154,15 @@ async function saveSetting() {
         <el-button type="primary" :loading="store.saving" @click="saveDevice">保存设备</el-button>
       </template>
     </PageHeader>
+
+    <el-alert
+      v-if="!sync.online"
+      title="链路断开中：定值修改会写入现场离线包并本地重算，台账维护、基线上会签需回网后办理。"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 14px"
+    />
 
     <div class="two-column">
       <section class="panel">
@@ -221,6 +242,11 @@ async function saveSetting() {
           </template>
         </el-table-column>
         <el-table-column prop="startCondition" label="启动条件" min-width="170" />
+        <el-table-column label="修订号" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">r{{ row.rev ?? 1 }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openSetting(row)">编辑</el-button>

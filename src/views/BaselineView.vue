@@ -5,9 +5,10 @@ import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAppStore } from '@/stores/app'
 import { diffSettings } from '@/services/validation'
+import { fieldLabels } from '@/services/revision'
 
 const store = useAppStore()
-const { data, settings } = storeToRefs(store)
+const { data, settings, effectiveVersion } = storeToRefs(store)
 const selectedId = ref(data.value.activeBaselineId ?? data.value.baselines[0]?.id ?? '')
 const createDialog = ref(false)
 const baselineNote = ref('')
@@ -31,15 +32,6 @@ watch(
   },
 )
 
-const fieldLabels: Record<string, string> = {
-  currentA: '电流定值',
-  timeS: '动作时限',
-  direction: '方向',
-  sensitivity: '灵敏度',
-  recloseEnabled: '重合闸投入',
-  recloseDelayS: '重合延迟',
-  startCondition: '启动条件',
-}
 
 async function createBaseline() {
   if (!baselineNote.value.trim()) {
@@ -87,7 +79,7 @@ async function submitComment() {
         <el-button @click="createDialog = true">创建基线上会签</el-button>
         <el-button
           type="primary"
-          :disabled="!selected || selected.status === 'locked'"
+          :disabled="!selected || selected.status === 'locked' || selected.status === 'invalid'"
           :loading="store.saving"
           @click="lockBaseline"
         >
@@ -95,6 +87,16 @@ async function submitComment() {
         </el-button>
       </template>
     </PageHeader>
+
+    <el-alert
+      :title="effectiveVersion
+        ? `当前有效版本：${effectiveVersion.version}（校验码 ${effectiveVersion.checksum}）——审批页与“定值执行”页同源，${effectiveVersion.drifted ? '该版本已漂移，执行页将拒绝下装' : '执行页据此版本下装'}。`
+        : '尚无锁定的有效版本；锁定后审批页与执行页共用同一版本。'"
+      :type="effectiveVersion?.drifted ? 'error' : 'success'"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 14px"
+    />
 
     <div class="two-column">
       <section class="panel">
@@ -106,13 +108,13 @@ async function submitComment() {
           <el-table-column prop="version" label="版本" width="90" />
           <el-table-column prop="note" label="说明" min-width="220" />
           <el-table-column prop="createdBy" label="创建人" width="95" />
-          <el-table-column label="状态" width="100">
+          <el-table-column label="状态" width="110">
             <template #default="{ row }">
               <el-tag
-                :type="row.status === 'locked' ? 'success' : row.status === 'reviewing' ? 'warning' : 'info'"
+                :type="row.status === 'locked' ? (row.drifted ? 'danger' : 'success') : row.status === 'reviewing' ? 'warning' : row.status === 'invalid' ? 'danger' : 'info'"
                 effect="plain"
               >
-                {{ row.status === 'locked' ? '已锁定' : row.status === 'reviewing' ? '会签中' : '草稿' }}
+                {{ row.status === 'locked' ? (row.drifted ? '已锁定·漂移' : '已锁定') : row.status === 'reviewing' ? '会签中' : row.status === 'invalid' ? '失效待重算' : '草稿' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -128,6 +130,22 @@ async function submitComment() {
           </el-tag>
         </div>
         <template v-if="selected">
+          <el-alert
+            v-if="selected.status === 'invalid'"
+            title="会签期间定值发生变更，该基线快照已失效，请按当前定值重新创建基线上会签。"
+            type="error"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          />
+          <el-alert
+            v-else-if="selected.status === 'locked' && selected.drifted"
+            title="该锁定版本之后定值又发生变更，版本已漂移；执行页拒绝下装，请重新审批新版本后切换有效版本。"
+            type="error"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          />
           <el-descriptions :column="1" border>
             <el-descriptions-item label="基线说明">{{ selected.note }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">
